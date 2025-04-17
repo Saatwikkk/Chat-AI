@@ -2,6 +2,14 @@ import { Link } from "react-router-dom";
 import "./chatList.css";
 import { useQuery } from "@tanstack/react-query";
 
+<link
+  rel="stylesheet"
+  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
+  integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg=="
+  crossorigin="anonymous"
+  referrerpolicy="no-referrer"
+/>;
+
 const ChatList = () => {
   const { isPending, error, data } = useQuery({
     queryKey: ["userChats"],
@@ -13,14 +21,30 @@ const ChatList = () => {
 
   return (
     <div className="chatList">
-      <Link to="/dashboard" style={{fontSize: 18, color: "white", textDecoration: "none"}}>Create a new Chat</Link>
-      <Link to="/" style={{fontSize: 18, color: "white", textDecoration: "none"}}>Explore CHAT AI</Link>
-      <Link to="/" style={{fontSize: 18, color: "white", textDecoration: "none"}}>Contact</Link>
+      <Link
+        to="/dashboard"
+        style={{ fontSize: 18, color: "white", textDecoration: "none" }}
+      >
+        <i class="fa-solid fa-plus"></i>
+        Create a new Chat
+      </Link>
+      <Link
+        to="/"
+        style={{ fontSize: 18, color: "white", textDecoration: "none" }}
+      >
+        Explore CHAT AI
+      </Link>
+      <Link
+        to="/contact"
+        style={{ fontSize: 18, color: "white", textDecoration: "none" }}
+      >
+        Contact
+      </Link>
       <hr />
       <span className="title">Previous chats</span>
       <div className="list">
         {isPending
-          ? "Loading..."
+          ? "No previous chats !"
           : error
           ? "Something went wrong!"
           : data?.map((chat) => (

@@ -9,6 +9,7 @@ import RootLayout from "./layouts/rootLayout/RootLayout";
 import DashboardLayout from "./layouts/dashboardLayout/DashboardLayout";
 import SigninPage from "./routes/signinPage/SigninPage";
 import SignupPage from "./routes/signupPage/SignupPage";
+import ContactPage from "./routes/contactPage/ContactPage";
 
 const router = createBrowserRouter([
   {
@@ -25,6 +26,10 @@ const router = createBrowserRouter([
       {
         path: "/sign-up/*",
         element: <SignupPage />,
+      },
+      {
+        path: "/contact",
+        element: <ContactPage />,
       },
       {
         element: <DashboardLayout />,
