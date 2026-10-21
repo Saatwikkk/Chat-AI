@@ -1,0 +1,158 @@
+# Checks every pull request and branch push: installs, lints and builds both
+# apps, smoke-tests the API and builds the Docker image (without pushing).
+# The Deploy workflow reuses this file before publishing an image.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - main # main is checked by the Deploy workflow, which calls this file
+  workflow_call:
+    inputs:
+      skip-docker:
+        description: Skip the Docker build check (the caller builds the image itself)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 24
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check syntax
+        run: find . -name '*.js' -not -path './node_modules/*' -print0 | xargs -0 -n1 node --check
+
+      - name: Smoke test (server boots and answers)
+        env:
+          # Dummy values: enough to boot the app; no external service is called.
+          MONGODB_URI: mongodb://localhost:27017/ci
+          CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
+          CLERK_SECRET_KEY: sk_test_ci_dummy
+          GEMINI_API_KEY: ci-dummy
+          IMAGE_KIT_ENDPOINT: https://ik.imagekit.io/ci
+          IMAGE_KIT_PUBLIC_KEY: public_ci
+          IMAGE_KIT_PRIVATE_KEY: private_ci
+          CLERK_TELEMETRY_DISABLED: "1"
+        run: |
+          node --input-type=module -e '
+            import { createApp } from "./app.js";
+            const server = createApp().listen(0, async () => {
+              const base = `http://127.0.0.1:${server.address().port}`;
+              const health = await fetch(`${base}/api/health`);
+              const chats = await fetch(`${base}/api/chats`);
+              server.close();
+              if (health.status !== 200 || chats.status !== 401) {
+                console.error(`Unexpected status: health=${health.status} chats=${chats.status}`);
+                process.exit(1);
+              }
+              console.log("API smoke test passed");
+            });
+          '
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
+          VITE_IMAGE_KIT_ENDPOINT: https://ik.imagekit.io/ci
+          VITE_IMAGE_KIT_PUBLIC_KEY: public_ci
+        run: npm run build
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  docker:
+    name: Docker image
+    if: ${{ !inputs.skip-docker }}
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Build image (no push)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: false
+          load: true
+          tags: chat-ai:ci
+          build-args: |
+            VITE_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
+            VITE_IMAGE_KIT_ENDPOINT=https://ik.imagekit.io/ci
+            VITE_IMAGE_KIT_PUBLIC_KEY=public_ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Container starts and is healthy
+        run: |
+          docker run -d --name app -p 8000:8000 \
+            -e MONGODB_URI=mongodb://localhost:27017/ci \
+            -e CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsuZXhhbXBsZS5jb20k \
+            -e CLERK_SECRET_KEY=sk_test_ci_dummy \
+            -e GEMINI_API_KEY=ci-dummy \
+            -e IMAGE_KIT_ENDPOINT=https://ik.imagekit.io/ci \
+            -e IMAGE_KIT_PUBLIC_KEY=public_ci \
+            -e IMAGE_KIT_PRIVATE_KEY=private_ci \
+            --entrypoint node chat-ai:ci --input-type=module -e '
+              import { createApp } from "./app.js";
+              createApp().listen(8000);
+            '
+          # The app normally waits for MongoDB; this entrypoint skips the DB
+          # to check that the image, the API and the bundled frontend work.
+          for i in $(seq 1 20); do
+            if curl -fsS http://localhost:8000/api/health && curl -fsS http://localhost:8000/ | grep -q '<div id="root">'; then
+              echo; echo "Container OK"; exit 0
+            fi
+            sleep 2
+          done
+          docker logs app
+          exit 1

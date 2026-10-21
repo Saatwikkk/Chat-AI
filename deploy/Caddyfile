@@ -1,0 +1,14 @@
+# Caddy terminates HTTPS (certificates from Let's Encrypt are issued and renewed
+# automatically) and forwards requests to the app container.
+# DOMAIN comes from the server's .env, e.g. chat.example.com. Its DNS A record
+# must point at this server before the first start.
+
+{$DOMAIN} {
+	# Don't compress the streamed AI replies, so chunks reach the browser immediately.
+	@compressible not path */reply
+	encode @compressible zstd gzip
+
+	reverse_proxy app:8000 {
+		flush_interval -1
+	}
+}

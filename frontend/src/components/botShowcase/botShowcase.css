@@ -1,0 +1,98 @@
+.botShowcase {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #140e2d;
+  border-radius: 50px;
+  width: 80%;
+  height: 50%;
+  min-height: 280px;
+  position: relative;
+
+  .bgContainer {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 50px;
+
+    .bg {
+      background-image: url("/bg.png");
+      opacity: 0.2;
+      width: 200%;
+      height: 100%;
+      background-size: auto 100%;
+      animation: 8s ease-in-out infinite alternate slideBg;
+    }
+  }
+
+  .bot {
+    width: 100%;
+    height: 100%;
+    max-height: 420px;
+    object-fit: contain;
+    animation: 3s ease-in-out infinite alternate botAnimate;
+  }
+
+  .sampleChat {
+    position: absolute;
+    bottom: -30px;
+    right: -50px;
+    max-width: 360px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px;
+    background-color: #2c2937;
+    border-radius: 10px;
+    font-size: 14px;
+
+    @media screen and (max-width: 1280px) {
+      right: 0;
+    }
+
+    @media screen and (max-width: 1024px) {
+      display: none;
+    }
+
+    img {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+  }
+
+  @media screen and (max-width: 1024px) {
+    width: 100%;
+    min-height: 220px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bg,
+    .bot {
+      animation: none;
+    }
+  }
+}
+
+@keyframes slideBg {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes botAnimate {
+  0% {
+    transform: scale(1) rotate(0deg);
+  }
+  100% {
+    transform: scale(1.1) rotate(-5deg);
+  }
+}

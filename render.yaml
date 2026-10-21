@@ -1,0 +1,39 @@
+# Render Blueprint: deploys the API and the built frontend as one web service.
+# Values marked `sync: false` are entered in the Render dashboard on first deploy.
+services:
+  - type: web
+    name: chat-ai
+    runtime: node
+    plan: free
+    buildCommand: npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TRUST_PROXY
+        value: "true"
+      # Your public URL, e.g. https://chat-ai.onrender.com
+      - key: CLIENT_URL
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: IMAGE_KIT_ENDPOINT
+        sync: false
+      - key: IMAGE_KIT_PUBLIC_KEY
+        sync: false
+      - key: IMAGE_KIT_PRIVATE_KEY
+        sync: false
+      # Read by Vite at build time; same values as the ones above.
+      - key: VITE_CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: VITE_IMAGE_KIT_ENDPOINT
+        sync: false
+      - key: VITE_IMAGE_KIT_PUBLIC_KEY
+        sync: false

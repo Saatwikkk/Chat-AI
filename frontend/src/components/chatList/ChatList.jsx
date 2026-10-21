@@ -1,67 +1,96 @@
-import { Link } from "react-router-dom";
+import { Link, NavLink, useMatch, useNavigate } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import "./chatList.css";
-import { useQuery } from "@tanstack/react-query";
-
-<link
-  rel="stylesheet"
-  href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
-  integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg=="
-  crossorigin="anonymous"
-  referrerpolicy="no-referrer"
-/>;
+import { useApi } from "../../lib/api";
 
 const ChatList = () => {
-  const { isPending, error, data } = useQuery({
+  const request = useApi();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const activeChatId = useMatch("/dashboard/chats/:id")?.params.id;
+
+  const { isPending, error, data: chats } = useQuery({
     queryKey: ["userChats"],
-    queryFn: () =>
-      fetch(`${import.meta.env.VITE_API_URL}/api/userchats`, {
-        credentials: "include",
-      }).then((res) => res.json()),
+    queryFn: () => request("/api/chats"),
   });
 
+  const deleteChat = useMutation({
+    mutationFn: (id) => request(`/api/chats/${id}`, { method: "DELETE" }),
+    onSuccess: (_, id) => {
+      queryClient.setQueryData(["userChats"], (old) => old?.filter((chat) => chat._id !== id));
+      queryClient.removeQueries({ queryKey: ["chat", id] });
+      if (id === activeChatId) navigate("/dashboard");
+    },
+    onError: (err) => alert(err.message),
+  });
+
+  const clearHistory = useMutation({
+    mutationFn: () => request("/api/chats", { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.setQueryData(["userChats"], []);
+      queryClient.removeQueries({ queryKey: ["chat"] });
+      if (activeChatId) navigate("/dashboard");
+    },
+    onError: (err) => alert(err.message),
+  });
+
+  const handleDelete = (chat) => {
+    if (window.confirm(`Delete "${chat.title}"? This can't be undone.`)) {
+      deleteChat.mutate(chat._id);
+    }
+  };
+
+  const handleClear = () => {
+    if (window.confirm("Delete all of your chats? This can't be undone.")) {
+      clearHistory.mutate();
+    }
+  };
+
+  let list;
+  if (isPending) list = <p className="listStatus">Loading…</p>;
+  else if (error) list = <p className="listStatus error">{error.message}</p>;
+  else if (!chats.length) list = <p className="listStatus">No chats yet. Start one above!</p>;
+  else {
+    list = chats.map((chat) => (
+      <div key={chat._id} className="chatEntry">
+        <NavLink to={`/dashboard/chats/${chat._id}`} title={chat.title}>
+          {chat.title}
+        </NavLink>
+        <button
+          className="deleteButton"
+          onClick={() => handleDelete(chat)}
+          disabled={deleteChat.isPending}
+          aria-label={`Delete ${chat.title}`}
+          title="Delete chat"
+        >
+          <i className="fa-solid fa-trash" />
+        </button>
+      </div>
+    ));
+  }
+
   return (
-    <div className="chatList">
-      <Link
-        to="/dashboard"
-        style={{ fontSize: 18, color: "white", textDecoration: "none" }}
-      >
-        <i class="fa-solid fa-plus"></i>
-        Create a new Chat
+    <nav className="chatList" aria-label="Chats">
+      <Link to="/dashboard" className="navLink">
+        <i className="fa-solid fa-plus" /> New chat
       </Link>
-      <Link
-        to="/"
-        style={{ fontSize: 18, color: "white", textDecoration: "none" }}
-      >
-        Explore CHAT AI
+      <Link to="/explore" className="navLink">
+        <i className="fa-solid fa-compass" /> Explore CHAT AI
       </Link>
-      <Link
-        to="/contact"
-        style={{ fontSize: 18, color: "white", textDecoration: "none" }}
-      >
-        Contact
+      <Link to="/contact" className="navLink">
+        <i className="fa-solid fa-envelope" /> Contact
       </Link>
+
       <hr />
-      <span className="title">Previous chats</span>
-      <div className="list">
-        {isPending
-          ? "No previous chats !"
-          : error
-          ? "Something went wrong!"
-          : data?.map((chat) => (
-              <Link to={`/dashboard/chats/${chat._id}`} key={chat._id}>
-                {chat.title}
-              </Link>
-            ))}
-      </div>
-      <hr />
-      <div className="upgrade">
-        <img src="/logo.png" alt="" />
-        <div className="texts">
-          <span>Upgrade to CHAT AI Pro</span>
-          <span>Get unlimited access to all features</span>
-        </div>
-      </div>
-    </div>
+      <span className="title">Recent chats</span>
+      <div className="list">{list}</div>
+
+      {chats?.length > 0 && (
+        <button className="clearButton" onClick={handleClear} disabled={clearHistory.isPending}>
+          <i className="fa-solid fa-trash-can" /> Clear history
+        </button>
+      )}
+    </nav>
   );
 };
 

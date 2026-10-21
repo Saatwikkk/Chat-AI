@@ -1,0 +1,125 @@
+.promptForm {
+  width: 100%;
+  background-color: #2c2937;
+  border-radius: 20px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  .inputRow {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+  }
+
+  textarea {
+    flex: 1;
+    resize: none;
+    max-height: 200px;
+    padding: 9px 4px;
+    background-color: transparent;
+    border: none;
+    outline: none;
+    color: #ececec;
+    font: inherit;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .iconButton {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #ececec;
+    transition: background-color 0.2s ease, opacity 0.2s ease;
+
+    img {
+      width: 16px;
+      height: 16px;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.4;
+    }
+  }
+
+  .attach {
+    background-color: transparent;
+
+    img {
+      width: 20px;
+      height: 20px;
+      opacity: 0.8;
+    }
+
+    &:hover:not(:disabled) {
+      background-color: #3a3746;
+    }
+  }
+
+  .send {
+    background-color: #605e68;
+
+    &:hover:not(:disabled) {
+      background-color: #217bfe;
+    }
+  }
+
+  .attachment {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px;
+  }
+
+  .preview {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    border-radius: 10px;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  .uploading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    background-color: rgba(0, 0, 0, 0.6);
+  }
+
+  .attachmentError {
+    color: #ff8a80;
+    font-size: 13px;
+  }
+
+  .removeAttachment {
+    border: none;
+    background-color: #3a3746;
+    color: #ececec;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+
+    &:hover {
+      background-color: #e74c3c;
+    }
+  }
+}

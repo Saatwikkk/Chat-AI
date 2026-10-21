@@ -1,0 +1,30 @@
+# Keep the build context small and never send secrets to the Docker daemon.
+
+# Dependencies and build output (rebuilt inside the image)
+**/node_modules
+**/dist
+**/dist-ssr
+
+# Secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# VCS, CI and deployment files
+.git
+.gitignore
+.github
+deploy
+render.yaml
+Dockerfile
+.dockerignore
+
+# Editors, OS files, logs
+.vscode
+.idea
+**/.DS_Store
+**/*.log
+**/npm-debug.log*
+
+# Docs
+README.md

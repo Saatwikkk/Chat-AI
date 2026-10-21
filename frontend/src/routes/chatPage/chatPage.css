@@ -1,40 +1,101 @@
-.chatpage {
+.chatPage {
   height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  position: relative;
 
-  .wrapper {
+  .messages {
     flex: 1;
-    overflow: scroll;
+    min-height: 0;
     width: 100%;
+    overflow-y: auto;
     display: flex;
     justify-content: center;
-    overflow-x: hidden;
+    padding: 24px 16px 8px;
+  }
 
-    .chat {
-      width: 70%;
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
+  .chat {
+    width: 100%;
+    max-width: 780px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
 
-      p,
-      li {
-        margin: 10px 0px;
+  .composer {
+    width: 100%;
+    max-width: 812px;
+    padding: 8px 16px 12px;
+  }
+
+  .disclaimer {
+    text-align: center;
+    color: #777;
+    font-size: 11px;
+    margin-top: 8px;
+  }
+
+  .typingIndicator {
+    display: flex;
+    gap: 5px;
+    padding: 8px 2px;
+
+    span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: #888;
+      animation: typingBounce 1.2s infinite ease-in-out;
+
+      &:nth-child(2) {
+        animation-delay: 0.15s;
       }
-
-      .message {
-        margin-top: 10px;
-        padding: 15px;
-
-        &.user {
-          background-color: #2c2937;
-          border-radius: 20px;
-          max-width: 80%;
-          align-self: flex-end;
-        }
+      &:nth-child(3) {
+        animation-delay: 0.3s;
       }
     }
+  }
+
+  .replyError {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 16px;
+    border: 1px solid #5c2b2b;
+    background-color: #2a1517;
+    color: #ffb4ab;
+    border-radius: 12px;
+    font-size: 14px;
+
+    button {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background-color: transparent;
+      color: #ececec;
+      border: 1px solid #605e68;
+      border-radius: 8px;
+      padding: 6px 12px;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #3a3746;
+      }
+    }
+  }
+}
+
+@keyframes typingBounce {
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 1;
+    transform: translateY(-4px);
   }
 }

@@ -1,22 +1,30 @@
-import { Link, Outlet } from "react-router-dom";
+import { Link, Outlet, useNavigate } from "react-router-dom";
+import { ClerkProvider, SignedIn, SignedOut, UserButton } from "@clerk/clerk-react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./rootLayout.css";
-import { ClerkProvider, SignedIn, UserButton } from "@clerk/clerk-react";
-import {
-  QueryClient,
-  QueryClientProvider,
-} from "@tanstack/react-query";
+import { CLERK_PUBLISHABLE_KEY } from "../../lib/config";
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-
-if (!PUBLISHABLE_KEY) {
-  throw new Error("Missing Publishable Key");
-}
-
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Don't retry requests that failed for a reason retrying won't fix.
+      retry: (failureCount, error) =>
+        ![400, 401, 403, 404].includes(error?.status) && failureCount < 2,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const RootLayout = () => {
+  const navigate = useNavigate();
+
   return (
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY} afterSignOutUrl="/">
+    <ClerkProvider
+      publishableKey={CLERK_PUBLISHABLE_KEY}
+      afterSignOutUrl="/"
+      routerPush={(to) => navigate(to)}
+      routerReplace={(to) => navigate(to, { replace: true })}
+    >
       <QueryClientProvider client={queryClient}>
         <div className="rootLayout">
           <header>
@@ -24,10 +32,15 @@ const RootLayout = () => {
               <img src="/logo.png" alt="" />
               <span>CHAT AI</span>
             </Link>
-            <div className="user" style={{marginRight: 35}}>
+            <div className="user">
               <SignedIn>
                 <UserButton />
               </SignedIn>
+              <SignedOut>
+                <Link to="/sign-in" className="signInLink">
+                  Sign in
+                </Link>
+              </SignedOut>
             </div>
           </header>
           <main>

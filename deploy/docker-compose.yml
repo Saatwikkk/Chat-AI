@@ -1,0 +1,70 @@
+# Production stack, run on your server from the deploy directory
+# (~/chat-ai by default). The GitHub deploy workflow uploads this file, the
+# Caddyfile and a generated .env, then pulls the new image from Docker Hub.
+#
+# Manual use:   docker compose pull && docker compose up -d
+
+name: chat-ai
+
+services:
+  app:
+    image: ${DOCKERHUB_USERNAME:?set DOCKERHUB_USERNAME in .env}/${IMAGE_NAME:-chat-ai}:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    init: true
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "8000"
+      TRUST_PROXY: "true"
+      CLIENT_URL: ${CLIENT_URL:-https://${DOMAIN}}
+      # Uses the bundled MongoDB below unless MONGODB_URI is set (e.g. to Atlas).
+      MONGODB_URI: ${MONGODB_URI:-mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/chatai?authSource=admin}
+    expose:
+      - "8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  mongo:
+    image: mongo:8
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?set MONGO_ROOT_USERNAME in .env}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env}
+    volumes:
+      - mongo-data:/data/db
+    # Not published to the host: only reachable by the app on the internal network.
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging: *logging
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+    logging: *logging
+
+volumes:
+  mongo-data:
+  caddy-data:
+  caddy-config:

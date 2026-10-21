@@ -1,0 +1,43 @@
+# Run the production image locally, built from source, with a local MongoDB:
+#
+#   docker compose --env-file frontend/.env up --build
+#   -> http://localhost:8000
+#
+# Build-time values (VITE_*) come from frontend/.env via --env-file;
+# runtime secrets come from backend/.env. MONGODB_URI is overridden to use the
+# local database container. For the production server stack see deploy/.
+
+name: chat-ai-local
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:?run with --env-file frontend/.env}
+        VITE_IMAGE_KIT_ENDPOINT: ${VITE_IMAGE_KIT_ENDPOINT:?run with --env-file frontend/.env}
+        VITE_IMAGE_KIT_PUBLIC_KEY: ${VITE_IMAGE_KIT_PUBLIC_KEY:?run with --env-file frontend/.env}
+    init: true
+    env_file: backend/.env
+    environment:
+      PORT: "8000"
+      MONGODB_URI: mongodb://mongo:27017/chatai
+      CLIENT_URL: http://localhost:8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:8
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  mongo-data:

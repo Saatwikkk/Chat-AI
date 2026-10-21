@@ -1,82 +1,109 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { TypeAnimation } from "react-type-animation";
+import { useMutation } from "@tanstack/react-query";
 import "./contactPage.css";
+import { useApi } from "../../lib/api";
+import BotShowcase from "../../components/botShowcase/BotShowcase";
+
+const EMPTY_FORM = { name: "", email: "", message: "" };
 
 const ContactPage = () => {
-    const navigate = useNavigate();
-    const [typingStatus, setTypingStatus] = useState("human1");
+  const navigate = useNavigate();
+  const request = useApi();
+  const [form, setForm] = useState(EMPTY_FORM);
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        alert("Form submitted!");
-    };
+  const sendMessage = useMutation({
+    mutationFn: (body) => request("/api/contact", { method: "POST", body }),
+    onSuccess: () => setForm(EMPTY_FORM),
+  });
 
-    const handleBack = () => {
-        navigate("/Dashboard");
-    };
+  const handleChange = (e) => {
+    setForm((current) => ({ ...current, [e.target.name]: e.target.value }));
+  };
 
-    return (
-        <div className="contactContainer">
-            <button className="backTopButton" onClick={handleBack}>
-                ←
-            </button>
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    sendMessage.mutate(form);
+  };
 
-            <div className="left">
-                <div className="heading">
-                    <h1>Contact us</h1>
-                </div>
+  const handleBack = () => {
+    if (window.history.length > 1) navigate(-1);
+    else navigate("/");
+  };
 
-                <form className="contactForm" onSubmit={handleSubmit}>
-                    <input type="text" placeholder="Enter your full name" required />
-                    <input className="loginInput" type="email" placeholder="Email" required />
-                    <input className="message" type="text" placeholder="Your Message" required />
-                    <button className="submitButton" type="submit">Submit</button>
-                </form>
-            </div>
+  return (
+    <div className="contactContainer">
+      <button className="backButton" onClick={handleBack} aria-label="Go back">
+        <i className="fa-solid fa-arrow-left" />
+      </button>
 
-            <div className="right">
-                <div className="imgContainer">
-                    <div className="bgContainer">
-                        <div className="bg"></div>
-                    </div>
-                    <img src="/bot.png" alt="" className="bot" />
-                    <div className="chat">
-                        <img
-                            src={
-                                typingStatus === "human1"
-                                    ? "/human1.jpeg"
-                                    : typingStatus === "human2"
-                                    ? "/human2.jpeg"
-                                    : "bot.png"
-                            }
-                            alt=""
-                        />
-                        <TypeAnimation
-                            sequence={[
-                                "Human: We produce food for Mice",
-                                2000,
-                                () => setTypingStatus("bot"),
-                                "Bot: We produce food for Hamsters",
-                                2000,
-                                () => setTypingStatus("human2"),
-                                "Human2: We produce food for Guinea Pigs",
-                                2000,
-                                () => setTypingStatus("bot"),
-                                "Bot: We produce food for Chinchillas",
-                                2000,
-                                () => setTypingStatus("human1"),
-                            ]}
-                            wrapper="span"
-                            repeat={Infinity}
-                            cursor={true}
-                            omitDeletionAnimation={true}
-                        />
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+      <div className="left">
+        <h1 className="heading">Contact us</h1>
+        <p className="subheading">Questions, feedback or ideas? We&apos;d love to hear from you.</p>
+
+        <form className="contactForm" onSubmit={handleSubmit}>
+          <label>
+            <span>Name</span>
+            <input
+              type="text"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              placeholder="Your full name"
+              maxLength={100}
+              autoComplete="name"
+              required
+            />
+          </label>
+          <label>
+            <span>Email</span>
+            <input
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={handleChange}
+              placeholder="you@example.com"
+              maxLength={200}
+              autoComplete="email"
+              required
+            />
+          </label>
+          <label>
+            <span>Message</span>
+            <textarea
+              name="message"
+              value={form.message}
+              onChange={handleChange}
+              placeholder="How can we help?"
+              rows={5}
+              minLength={10}
+              maxLength={5000}
+              required
+            />
+          </label>
+
+          {sendMessage.isSuccess && (
+            <p className="formStatus success" role="status">
+              Thanks! Your message has been sent.
+            </p>
+          )}
+          {sendMessage.isError && (
+            <p className="formStatus error" role="alert">
+              {sendMessage.error.message}
+            </p>
+          )}
+
+          <button className="submitButton" type="submit" disabled={sendMessage.isPending}>
+            {sendMessage.isPending ? "Sending…" : "Send message"}
+          </button>
+        </form>
+      </div>
+
+      <div className="right">
+        <BotShowcase />
+      </div>
+    </div>
+  );
 };
 
 export default ContactPage;

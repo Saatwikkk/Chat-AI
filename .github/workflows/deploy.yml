@@ -1,0 +1,219 @@
+# Continuous deployment.
+#
+# Push to main -> CI -> build and push the image to Docker Hub
+#             -> server pulls the new image from Docker Hub and restarts.
+#
+# Rollback: Actions -> Deploy -> "Run workflow", and enter an earlier image tag
+# (e.g. sha-1a2b3c4, listed on Docker Hub) to redeploy it without rebuilding.
+#
+# Every secret and variable used here is listed in deploy/DEPLOYMENT.md.
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Image tag to deploy (e.g. sha-1a2b3c4). Leave empty to build and deploy the current commit.
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Never run two deployments at once; queue them instead.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  # Docker Hub repository name: <DOCKERHUB_USERNAME>/<IMAGE_NAME>
+  IMAGE_NAME: ${{ vars.IMAGE_NAME || 'chat-ai' }}
+
+jobs:
+  ci:
+    name: CI
+    if: ${{ inputs.image_tag == '' }}
+    uses: ./.github/workflows/ci.yml
+    with:
+      skip-docker: true
+
+  build:
+    name: Build & push to Docker Hub
+    needs: ci
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check required settings
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          IMAGE_KIT_ENDPOINT: ${{ secrets.IMAGE_KIT_ENDPOINT }}
+          IMAGE_KIT_PUBLIC_KEY: ${{ secrets.IMAGE_KIT_PUBLIC_KEY }}
+        run: |
+          missing=0
+          for name in DOCKERHUB_USERNAME DOCKERHUB_TOKEN CLERK_PUBLISHABLE_KEY IMAGE_KIT_ENDPOINT IMAGE_KIT_PUBLIC_KEY; do
+            if [ -z "${!name}" ]; then echo "::error::Missing secret/variable: $name"; missing=1; fi
+          done
+          exit $missing
+
+      - name: Compute image tag
+        id: tag
+        run: echo "tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: docker.io/${{ vars.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ steps.tag.outputs.tag }}
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64 # add linux/arm64 for ARM servers (slower builds)
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VITE_CLERK_PUBLISHABLE_KEY=${{ secrets.CLERK_PUBLISHABLE_KEY }}
+            VITE_IMAGE_KIT_ENDPOINT=${{ secrets.IMAGE_KIT_ENDPOINT }}
+            VITE_IMAGE_KIT_PUBLIC_KEY=${{ secrets.IMAGE_KIT_PUBLIC_KEY }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to server
+    needs: build
+    # Runs after a successful build, or on its own for a manual rollback.
+    if: ${{ always() && (needs.build.result == 'success' || (needs.build.result == 'skipped' && inputs.image_tag != '')) }}
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://${{ vars.DOMAIN }}
+    env:
+      IMAGE_TAG: ${{ inputs.image_tag || needs.build.outputs.tag }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || 'chat-ai' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Create server .env from secrets
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOMAIN: ${{ vars.DOMAIN }}
+          MONGO_ROOT_USERNAME: ${{ vars.MONGO_ROOT_USERNAME || 'chatai' }}
+          MONGO_ROOT_PASSWORD: ${{ secrets.MONGO_ROOT_PASSWORD }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-flash-latest' }}
+          AI_DAILY_LIMIT: ${{ vars.AI_DAILY_LIMIT || '200' }}
+          IMAGE_KIT_ENDPOINT: ${{ secrets.IMAGE_KIT_ENDPOINT }}
+          IMAGE_KIT_PUBLIC_KEY: ${{ secrets.IMAGE_KIT_PUBLIC_KEY }}
+          IMAGE_KIT_PRIVATE_KEY: ${{ secrets.IMAGE_KIT_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          required="DOCKERHUB_USERNAME DOMAIN CLERK_PUBLISHABLE_KEY CLERK_SECRET_KEY GEMINI_API_KEY \
+            IMAGE_KIT_ENDPOINT IMAGE_KIT_PUBLIC_KEY IMAGE_KIT_PRIVATE_KEY SSH_HOST SSH_USER SSH_PRIVATE_KEY"
+          # The bundled MongoDB needs a password unless an external MONGODB_URI is used.
+          [ -z "$MONGODB_URI" ] && required="$required MONGO_ROOT_PASSWORD"
+          missing=0
+          for name in $required; do
+            if [ -z "${!name}" ]; then echo "::error::Missing secret/variable: $name"; missing=1; fi
+          done
+          [ "$missing" = 0 ] || exit 1
+
+          umask 077
+          {
+            echo "DOCKERHUB_USERNAME=$DOCKERHUB_USERNAME"
+            echo "IMAGE_NAME=$IMAGE_NAME"
+            echo "IMAGE_TAG=$IMAGE_TAG"
+            echo "DOMAIN=$DOMAIN"
+            echo "MONGO_ROOT_USERNAME=$MONGO_ROOT_USERNAME"
+            echo "MONGO_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-unused-external-db}"
+            if [ -n "$MONGODB_URI" ]; then echo "MONGODB_URI=$MONGODB_URI"; fi
+            echo "CLERK_PUBLISHABLE_KEY=$CLERK_PUBLISHABLE_KEY"
+            echo "CLERK_SECRET_KEY=$CLERK_SECRET_KEY"
+            echo "GEMINI_API_KEY=$GEMINI_API_KEY"
+            echo "GEMINI_MODEL=$GEMINI_MODEL"
+            echo "AI_DAILY_LIMIT=$AI_DAILY_LIMIT"
+            echo "IMAGE_KIT_ENDPOINT=$IMAGE_KIT_ENDPOINT"
+            echo "IMAGE_KIT_PUBLIC_KEY=$IMAGE_KIT_PUBLIC_KEY"
+            echo "IMAGE_KIT_PRIVATE_KEY=$IMAGE_KIT_PRIVATE_KEY"
+          } > deploy/.env
+
+      - name: Upload stack files to the server
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ vars.SSH_PORT || 22 }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
+          source: deploy/docker-compose.yml,deploy/Caddyfile,deploy/.env
+          target: ${{ env.DEPLOY_PATH }}
+          strip_components: 1
+          overwrite: true
+
+      - name: Pull the new image from Docker Hub and restart
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ vars.SSH_PORT || 22 }}
+          fingerprint: ${{ secrets.SSH_FINGERPRINT }}
+          envs: DEPLOY_PATH,IMAGE_TAG,DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+          script: |
+            set -euo pipefail
+            cd "$DEPLOY_PATH"
+            chmod 600 .env
+
+            echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+            docker compose pull
+            docker logout
+
+            docker compose up -d --remove-orphans
+
+            echo "Waiting for $IMAGE_TAG to become healthy..."
+            status=starting
+            for i in $(seq 1 36); do
+              status=$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q app)")
+              [ "$status" = healthy ] && break
+              sleep 5
+            done
+            if [ "$status" != healthy ]; then
+              echo "App did not become healthy (status: $status)"
+              docker compose logs --tail=100 app
+              exit 1
+            fi
+
+            docker image prune -f
+            echo "Deployed $IMAGE_TAG"
+
+      - name: Check the public site
+        run: |
+          curl -fsS --retry 12 --retry-delay 5 --retry-all-errors "https://${{ vars.DOMAIN }}/api/health"
