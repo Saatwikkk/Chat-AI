@@ -5,13 +5,15 @@ A full-stack, multimodal AI chat app. Sign in, chat with Google Gemini, attach i
 **Features**
 
 - Streaming AI replies, with a button to stop generating
-- Image attachments, analyzed by Gemini and stored on ImageKit
-- Chat history per user, with automatic titles. Delete one chat or clear them all
+- Image attachments, analyzed by Gemini and stored on ImageKit; deleted along with their chat
+- Chat history per user with automatic titles: search, rename, delete one chat or clear them all; the list loads page by page
+- Accessible dialogs and notifications, keyboard support and screen-reader labels
+- Link previews (Open Graph and Twitter cards) when the site is shared
 - Markdown answers with tables and syntax-highlighted code
 - Authentication with Clerk; the API checks the session on every request
 - Responsive layout with a slide-out chat list on mobile
 - Contact form that saves messages to MongoDB
-- Per-user rate limits on AI replies to protect your API quota
+- Cost controls: per-user rate limits on AI replies and uploads, only recent messages sent as context, a reply-length cap and a timeout
 
 ## Tech stack
 
@@ -24,13 +26,14 @@ A full-stack, multimodal AI chat app. Sign in, chat with Google Gemini, attach i
 ## How it works
 
 ```
-Browser ──(Clerk session token)──► Express API ──► MongoDB   (chats, contact messages)
-   │                                   ├─────────► Gemini    (AI replies, streamed back)
-   └──(signed upload)──► ImageKit ◄────┘                     (image storage)
+Browser ──(Clerk session token)──► Express API ──► MongoDB   (chats, messages, uploads, contact)
+                                       ├─────────► Gemini    (AI replies, streamed back)
+                                       └─────────► ImageKit  (image storage)
 ```
 
 - The Gemini API key lives only on the server. The browser never talks to Gemini directly.
-- The browser uploads images straight to ImageKit, using a short-lived signature issued by the API (signed-in users only). Messages store only the ImageKit file path. The server fetches the image from your ImageKit endpoint when it calls Gemini.
+- Images are uploaded through the API, which checks the file type, stores the image on ImageKit in the user's folder, and records who owns it. Users can only attach their own images. Images are deleted with their chat, and images that were uploaded but never sent are removed after 24 hours.
+- Each message is its own MongoDB document, so long chats never hit MongoDB's 16 MB document limit. Only the most recent messages (20 by default) are sent to Gemini.
 - `POST /api/chats/:id/reply` streams the answer as plain text. The user message and the reply are saved together when the stream ends, so a failed request never leaves a half-saved chat.
 
 ### API
@@ -40,13 +43,14 @@ All routes except `/api/health` and `/api/contact` need a signed-in user (`Autho
 | Method   | Route                  | Description                                           |
 | -------- | ---------------------- | ----------------------------------------------------- |
 | `GET`    | `/api/health`          | Health check                                          |
-| `GET`    | `/api/chats`           | The user's chats (id, title, updatedAt), newest first |
+| `GET`    | `/api/chats`           | The user's chats, newest first. Query: `q` (title search), `cursor`, `limit`. Returns `{ chats, nextCursor }` |
 | `POST`   | `/api/chats`           | Create a chat from `{ text, img? }`, returns `{ id }` |
-| `GET`    | `/api/chats/:id`       | Full chat history                                     |
+| `GET`    | `/api/chats/:id`       | Chat with its messages                                |
+| `PATCH`  | `/api/chats/:id`       | Rename a chat `{ title }`                             |
 | `POST`   | `/api/chats/:id/reply` | Stream an AI reply (body `{ text?, img? }`)           |
-| `DELETE` | `/api/chats/:id`       | Delete one chat                                       |
+| `DELETE` | `/api/chats/:id`       | Delete one chat and its images                        |
 | `DELETE` | `/api/chats`           | Delete all of the user's chats                        |
-| `GET`    | `/api/upload`          | ImageKit upload signature                             |
+| `POST`   | `/api/uploads`         | Upload an image (raw bytes, `Content-Type: image/*`, max 5 MB), returns `{ filePath }` |
 | `POST`   | `/api/contact`         | Save a contact message `{ name, email, message }`     |
 
 ## Running locally
@@ -89,12 +93,12 @@ This builds the production image and runs it with a local MongoDB container. Sec
 
 ### Automated: GitHub Actions → Docker Hub → your server
 
-Every push to `main` is tested, built into a Docker image, pushed to Docker Hub, and pulled and restarted on your server behind HTTPS. Setup takes about 15 minutes: see **[deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md)**.
+From the **Actions** tab, **Run workflow** on *Deploy* tests the code, builds a Docker image, pushes it to Docker Hub, and has your server pull and restart it behind HTTPS. Workflows never run automatically on push. Setup takes about 15 minutes: see **[deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md)**.
 
 | File                                                           | Purpose                                              |
 | -------------------------------------------------------------- | ---------------------------------------------------- |
 | [Dockerfile](Dockerfile)                                       | Multi-stage build: React bundle + API in one image   |
-| [.github/workflows/ci.yml](.github/workflows/ci.yml)           | Lint, build, smoke tests, audit, image build on PRs  |
+| [.github/workflows/ci.yml](.github/workflows/ci.yml)           | Lint, build, smoke tests, audit, image build (manual) |
 | [.github/workflows/deploy.yml](.github/workflows/deploy.yml)   | CI → push to Docker Hub → deploy over SSH (+ rollback) |
 | [deploy/docker-compose.yml](deploy/docker-compose.yml)         | Server stack: app, MongoDB, Caddy (automatic HTTPS)  |
 | [deploy/setup-server.sh](deploy/setup-server.sh)               | One-time server setup                                |

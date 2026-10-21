@@ -6,7 +6,7 @@
 #   docker build -t <DOCKERHUB_USERNAME>/chat-ai \
 #     --build-arg VITE_CLERK_PUBLISHABLE_KEY=<pk_...> \
 #     --build-arg VITE_IMAGE_KIT_ENDPOINT=<https://ik.imagekit.io/your_id> \
-#     --build-arg VITE_IMAGE_KIT_PUBLIC_KEY=<public_...> .
+#     --build-arg VITE_SITE_URL=<https://your-domain> .
 
 ARG NODE_VERSION=24
 
@@ -20,14 +20,14 @@ RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 
 # Vite bakes these into the browser bundle. They are public values (Clerk
-# publishable key, ImageKit URL endpoint and public key), never secrets.
+# publishable key, ImageKit URL endpoint, site URL), never secrets.
 ARG VITE_CLERK_PUBLISHABLE_KEY
 ARG VITE_IMAGE_KIT_ENDPOINT
-ARG VITE_IMAGE_KIT_PUBLIC_KEY
+ARG VITE_SITE_URL=""
 ARG VITE_API_URL=""
 ENV VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY \
     VITE_IMAGE_KIT_ENDPOINT=$VITE_IMAGE_KIT_ENDPOINT \
-    VITE_IMAGE_KIT_PUBLIC_KEY=$VITE_IMAGE_KIT_PUBLIC_KEY \
+    VITE_SITE_URL=$VITE_SITE_URL \
     VITE_API_URL=$VITE_API_URL
 
 RUN npm run build

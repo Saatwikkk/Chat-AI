@@ -56,11 +56,15 @@
       padding: 70px 12px 20px;
       background-color: #0e0c16;
       transform: translateX(-100%);
-      transition: transform 0.25s ease;
+      /* Hidden menus are also removed from the tab order and screen readers. */
+      visibility: hidden;
+      transition: transform 0.25s ease, visibility 0s linear 0.25s;
     }
 
     &.menuOpen .menu {
       transform: translateX(0);
+      visibility: visible;
+      transition: transform 0.25s ease;
     }
 
     .backdrop {

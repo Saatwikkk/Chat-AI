@@ -14,7 +14,23 @@ const DashboardLayout = () => {
     setMenuOpen(false);
   }, [location.pathname]);
 
-  if (!isLoaded) return <div className="pageStatus">Loading…</div>;
+  // ...and when Escape is pressed.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [menuOpen]);
+
+  if (!isLoaded) {
+    return (
+      <div className="pageStatus" role="status">
+        Loading…
+      </div>
+    );
+  }
 
   if (!isSignedIn) {
     const redirect = encodeURIComponent(location.pathname);
@@ -26,12 +42,13 @@ const DashboardLayout = () => {
       <button
         className="menuToggle"
         onClick={() => setMenuOpen((open) => !open)}
-        aria-label={menuOpen ? "Close menu" : "Open menu"}
+        aria-label={menuOpen ? "Close chat menu" : "Open chat menu"}
         aria-expanded={menuOpen}
+        aria-controls="chat-menu"
       >
-        <i className={`fa-solid ${menuOpen ? "fa-xmark" : "fa-bars"}`} />
+        <i className={`fa-solid ${menuOpen ? "fa-xmark" : "fa-bars"}`} aria-hidden="true" />
       </button>
-      <aside className="menu">
+      <aside className="menu" id="chat-menu">
         <ChatList />
       </aside>
       {menuOpen && <div className="backdrop" onClick={() => setMenuOpen(false)} />}

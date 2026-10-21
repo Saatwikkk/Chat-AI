@@ -8,12 +8,10 @@ export const IMAGE_KIT_ENDPOINT = (import.meta.env.VITE_IMAGE_KIT_ENDPOINT || ""
   /\/$/,
   ""
 );
-export const IMAGE_KIT_PUBLIC_KEY = import.meta.env.VITE_IMAGE_KIT_PUBLIC_KEY;
 
 const missing = Object.entries({
   VITE_CLERK_PUBLISHABLE_KEY: CLERK_PUBLISHABLE_KEY,
   VITE_IMAGE_KIT_ENDPOINT: IMAGE_KIT_ENDPOINT,
-  VITE_IMAGE_KIT_PUBLIC_KEY: IMAGE_KIT_PUBLIC_KEY,
 })
   .filter(([, value]) => !value)
   .map(([name]) => name);

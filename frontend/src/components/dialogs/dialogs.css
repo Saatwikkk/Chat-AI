@@ -1,0 +1,149 @@
+.confirmDialog {
+  margin: auto;
+  width: min(420px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid #3a3746;
+  border-radius: 16px;
+  background-color: #1a1824;
+  color: #ececec;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+
+  &::backdrop {
+    background-color: rgba(0, 0, 0, 0.6);
+  }
+
+  &[open] {
+    animation: dialogIn 0.15s ease-out;
+  }
+
+  .dialogBody {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  h2 {
+    font-size: 18px;
+  }
+
+  p {
+    color: #c4c1cc;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .dialogActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  button {
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 14px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    color: white;
+    transition: background-color 0.2s ease;
+  }
+
+  .secondary {
+    background-color: transparent;
+    border-color: #605e68;
+
+    &:hover {
+      background-color: #2c2937;
+    }
+  }
+
+  .primary {
+    background-color: #1a6fe8;
+
+    &:hover {
+      background-color: #185ed1;
+    }
+  }
+
+  .danger {
+    background-color: #c62828;
+
+    &:hover {
+      background-color: #a31f1f;
+    }
+  }
+}
+
+.toasts {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(440px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  background-color: #2c2937;
+  border: 1px solid #3a3746;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  animation: toastIn 0.2s ease-out;
+
+  &.error {
+    border-color: #7a2e2e;
+    background-color: #2a1517;
+    color: #ffd2cc;
+  }
+
+  &.success {
+    border-color: #2e6b45;
+    background-color: #12261a;
+    color: #c8f0d4;
+  }
+
+  button {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: inherit;
+    opacity: 0.8;
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+
+    &:hover {
+      opacity: 1;
+      background-color: rgba(255, 255, 255, 0.08);
+    }
+  }
+}
+
+@keyframes dialogIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}

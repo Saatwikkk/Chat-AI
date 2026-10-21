@@ -24,7 +24,9 @@ export const errorHandler = (err, req, res, next) => {
     message = "Request body is too large.";
   }
 
-  if (status >= 500) {
+  // Unexpected errors are logged and their details hidden. HttpErrors carry a
+  // message written for users (e.g. "The AI service is busy"), so keep it.
+  if (status >= 500 && !(err instanceof HttpError)) {
     console.error(err);
     message = "Something went wrong. Please try again.";
   }

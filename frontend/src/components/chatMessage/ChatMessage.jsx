@@ -16,7 +16,8 @@ const ChatMessage = ({ role, text, img }) => {
   const isUser = role === "user";
 
   return (
-    <div className={`chatMessage ${isUser ? "user" : "model"}`}>
+    <article className={`chatMessage ${isUser ? "user" : "model"}`}>
+      <h2 className="srOnly">{isUser ? "You said:" : "CHAT AI said:"}</h2>
       {img && (
         <a href={imageUrl(img)} target="_blank" rel="noopener noreferrer">
           <img
@@ -41,7 +42,7 @@ const ChatMessage = ({ role, text, img }) => {
             </Markdown>
           </div>
         ))}
-    </div>
+    </article>
   );
 };
 

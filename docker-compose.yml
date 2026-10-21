@@ -16,7 +16,6 @@ services:
       args:
         VITE_CLERK_PUBLISHABLE_KEY: ${VITE_CLERK_PUBLISHABLE_KEY:?run with --env-file frontend/.env}
         VITE_IMAGE_KIT_ENDPOINT: ${VITE_IMAGE_KIT_ENDPOINT:?run with --env-file frontend/.env}
-        VITE_IMAGE_KIT_PUBLIC_KEY: ${VITE_IMAGE_KIT_PUBLIC_KEY:?run with --env-file frontend/.env}
     init: true
     env_file: backend/.env
     environment:

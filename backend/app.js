@@ -7,7 +7,7 @@ import helmet from "helmet";
 import { clerkMiddleware } from "@clerk/express";
 import { config } from "./config.js";
 import chatsRouter from "./routes/chats.js";
-import uploadRouter from "./routes/upload.js";
+import uploadsRouter from "./routes/uploads.js";
 import contactRouter from "./routes/contact.js";
 import { apiLimiter } from "./middleware/rateLimits.js";
 import { errorHandler, notFound } from "./middleware/errorHandler.js";
@@ -46,7 +46,7 @@ export const createApp = () => {
   );
 
   app.use("/api/chats", chatsRouter);
-  app.use("/api/upload", uploadRouter);
+  app.use("/api/uploads", uploadsRouter);
   app.use("/api/contact", contactRouter);
   app.use("/api", notFound);
 

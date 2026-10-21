@@ -1,9 +1,11 @@
 import { Link, isRouteErrorResponse, useRouteError } from "react-router-dom";
+import { useDocumentTitle } from "../../lib/hooks";
 
 // Used both for unknown URLs and as the router's error boundary.
 const NotFoundPage = () => {
   const error = useRouteError();
   const isNotFound = !error || (isRouteErrorResponse(error) && error.status === 404);
+  useDocumentTitle(isNotFound ? "Page not found" : "Error");
 
   if (error && !isNotFound) console.error(error);
 

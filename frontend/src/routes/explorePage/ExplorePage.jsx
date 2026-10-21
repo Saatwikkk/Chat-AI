@@ -1,8 +1,10 @@
 import "./explorePage.css";
 import { useNavigate } from "react-router-dom";
+import { useDocumentTitle } from "../../lib/hooks";
 
 const ExplorePage = () => {
   const navigate = useNavigate();
+  useDocumentTitle("Explore");
 
   const features = [
     {

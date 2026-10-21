@@ -1,7 +1,7 @@
-# Automated deployment: GitHub → Docker Hub → your server
+# Deployment: GitHub → Docker Hub → your server
 
 ```
-git push origin main
+Actions → Deploy → "Run workflow"
    │
    ▼
 GitHub Actions ── CI ───────────── lint, build, API smoke test, dependency audit
@@ -16,7 +16,10 @@ GitHub Actions ── CI ───────────── lint, build, AP
 
 On the server, three containers run: **app** (this project), **mongo** (database, private to the server) and **caddy** (HTTPS with automatic Let's Encrypt certificates).
 
-Pull requests and pushes to other branches only run CI. Nothing is deployed.
+Nothing runs automatically when you push. You start the workflows yourself from the repository's **Actions** tab:
+
+- **CI**: checks a branch (lint, build, tests, Docker image) without deploying.
+- **Deploy**: runs CI on the selected branch, then builds, pushes and deploys it. Pick `main` unless you mean to deploy another branch.
 
 ---
 
@@ -68,7 +71,6 @@ Repository → **Settings → Secrets and variables → Actions**.
 | `CLERK_SECRET_KEY`      | `<sk_live_...>`                                               |
 | `GEMINI_API_KEY`        | `<YOUR_GEMINI_API_KEY>`                                       |
 | `IMAGE_KIT_ENDPOINT`    | `<https://ik.imagekit.io/YOUR_IMAGEKIT_ID>`                   |
-| `IMAGE_KIT_PUBLIC_KEY`  | `<public_...>`                                                |
 | `IMAGE_KIT_PRIVATE_KEY` | `<private_...>`                                               |
 | `MONGODB_URI`           | *Optional.* `<mongodb+srv://...>` to use MongoDB Atlas instead of the bundled database |
 | `SSH_FINGERPRINT`       | *Optional, recommended.* Server host key fingerprint. Run `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the server and paste the `SHA256:...` part |
@@ -85,6 +87,12 @@ Repository → **Settings → Secrets and variables → Actions**.
 | `MONGO_ROOT_USERNAME` | *Optional.* Default `chatai`                           |
 | `GEMINI_MODEL`        | *Optional.* Default `gemini-flash-latest`              |
 | `AI_DAILY_LIMIT`      | *Optional.* AI replies per user per day. Default `200` |
+| `AI_CONTEXT_MESSAGES` | *Optional.* Recent messages sent to Gemini as context. Default `20` |
+| `AI_MAX_OUTPUT_TOKENS`| *Optional.* Maximum length of one reply. Default `8192` |
+| `AI_TIMEOUT_SECONDS`  | *Optional.* Give up when Gemini stalls this long. Default `60` |
+| `MAX_MESSAGES_PER_CHAT` | *Optional.* Default `1000`                           |
+| `UPLOADS_PER_HOUR`    | *Optional.* Image uploads per user per hour. Default `20` |
+| `UPLOADS_PER_DAY`     | *Optional.* Image uploads per user per day. Default `100` |
 
 `DOCKERHUB_USERNAME` and `DOMAIN` are variables rather than secrets on purpose. GitHub hides secret values in logs, and that would break image tags and job outputs that contain them.
 
@@ -94,11 +102,10 @@ The deploy job uses the GitHub environment **production**. Under **Settings → 
 
 ## 5. Deploy
 
-```sh
-git push origin main
-```
+1. Push your code: `git push origin main` (this alone doesn't deploy anything).
+2. On GitHub, open **Actions → Deploy → Run workflow**, choose the `main` branch, leave *Image tag* empty, and click **Run workflow**.
 
-Watch it under the repository's **Actions** tab. The first deploy takes a few minutes. Caddy gets the HTTPS certificate on first start, so the domain's DNS must already point at the server.
+Watch the run in the **Actions** tab. The first deploy takes a few minutes. Caddy gets the HTTPS certificate on first start, so the domain's DNS must already point at the server.
 
 In the Clerk dashboard, make sure your domain is configured for the production instance.
 
@@ -122,6 +129,8 @@ docker compose exec -T mongo sh -c 'mongodump --archive --gzip -u "$MONGO_INITDB
 ```
 
 Restore with `mongorestore --archive --gzip` the same way, piping the file in.
+
+**Upgrading from the old chat format:** chats created before messages moved to their own collection are migrated with `docker compose exec app npm run migrate` (safe to run more than once).
 
 **Change a secret:** update it in GitHub, then rerun the latest Deploy run, or Run workflow with the current tag. The server's `.env` is regenerated on every deploy.
 

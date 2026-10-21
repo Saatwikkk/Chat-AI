@@ -26,8 +26,6 @@ services:
         sync: false
       - key: IMAGE_KIT_ENDPOINT
         sync: false
-      - key: IMAGE_KIT_PUBLIC_KEY
-        sync: false
       - key: IMAGE_KIT_PRIVATE_KEY
         sync: false
       # Read by Vite at build time; same values as the ones above.
@@ -35,5 +33,6 @@ services:
         sync: false
       - key: VITE_IMAGE_KIT_ENDPOINT
         sync: false
-      - key: VITE_IMAGE_KIT_PUBLIC_KEY
+      # Public site URL for link previews, e.g. https://chat-ai.onrender.com
+      - key: VITE_SITE_URL
         sync: false

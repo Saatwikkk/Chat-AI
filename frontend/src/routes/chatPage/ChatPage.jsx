@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import "./chatPage.css";
 import { useApi } from "../../lib/api";
+import { prefersReducedMotion, useDocumentTitle } from "../../lib/hooks";
 import ChatMessage from "../../components/chatMessage/ChatMessage";
 import PromptForm from "../../components/promptForm/PromptForm";
 
@@ -46,7 +47,7 @@ const ChatView = ({ chatId }) => {
     async (message) => {
       const controller = new AbortController();
       abortRef.current = controller;
-      const startLength = queryClient.getQueryData(["chat", chatId])?.history.length ?? 0;
+      const startLength = queryClient.getQueryData(["chat", chatId])?.messages.length ?? 0;
       setReply({ message, answer: "", status: "streaming", error: null });
 
       try {
@@ -82,7 +83,7 @@ const ChatView = ({ chatId }) => {
         const latest = await queryClient
           .fetchQuery({ queryKey: ["chat", chatId], queryFn: fetchChat, staleTime: 0 })
           .catch(() => null);
-        if (latest && latest.history.length > startLength) {
+        if (latest && latest.messages.length > startLength) {
           queryClient.invalidateQueries({ queryKey: ["userChats"] });
           setReply(null);
           return;
@@ -104,14 +105,25 @@ const ChatView = ({ chatId }) => {
   useEffect(() => {
     if (!chat || autoReplied.current) return;
     autoReplied.current = true;
-    if (chat.history.at(-1)?.role === "user") sendReply(null);
+    if (chat.messages.at(-1)?.role === "user") sendReply(null);
   }, [chat, sendReply]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [chat?.history.length, reply?.message, reply?.answer, reply?.status]);
+    endRef.current?.scrollIntoView({
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+      block: "end",
+    });
+  }, [chat?.messages.length, reply?.message, reply?.answer, reply?.status]);
 
-  if (isPending) return <div className="pageStatus">Loading chat…</div>;
+  useDocumentTitle(chat?.title);
+
+  if (isPending) {
+    return (
+      <div className="pageStatus" role="status">
+        Loading chat…
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -126,13 +138,15 @@ const ChatView = ({ chatId }) => {
 
   return (
     <div className="chatPage">
+      <h1 className="srOnly">{chat.title}</h1>
       <div className="messages">
-        <div className="chat">
-          {chat.history.map((message, i) => (
+        {/* aria-busy holds screen-reader announcements until a reply finishes streaming. */}
+        <div className="chat" role="log" aria-label="Conversation" aria-busy={isStreaming}>
+          {chat.messages.map((message) => (
             <ChatMessage
-              key={i}
+              key={message._id}
               role={message.role}
-              text={message.parts?.map((part) => part.text).join("\n")}
+              text={message.text}
               img={message.img}
             />
           ))}
@@ -142,7 +156,7 @@ const ChatView = ({ chatId }) => {
           )}
           {reply?.answer && <ChatMessage role="model" text={reply.answer} />}
           {isStreaming && !reply.answer && (
-            <div className="typingIndicator" aria-label="CHAT AI is typing">
+            <div className="typingIndicator" role="status" aria-label="CHAT AI is typing">
               <span />
               <span />
               <span />
@@ -152,7 +166,7 @@ const ChatView = ({ chatId }) => {
             <div className="replyError" role="alert">
               <span>{reply.error}</span>
               <button onClick={() => sendReply(reply.message)}>
-                <i className="fa-solid fa-rotate-right" /> Retry
+                <i className="fa-solid fa-rotate-right" aria-hidden="true" /> Retry
               </button>
             </div>
           )}

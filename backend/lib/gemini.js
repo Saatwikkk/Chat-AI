@@ -9,34 +9,38 @@ const SYSTEM_INSTRUCTION = `You are CHAT AI, a friendly and knowledgeable assist
 Answer clearly and accurately. Use Markdown for formatting, and fenced code blocks with a language tag for code.
 If you are not sure about something, say so instead of guessing.`;
 
-// Older images in a long conversation are replaced by a placeholder so a single
-// request never has to download and send an unbounded number of images.
+// Older images in the context are replaced by a placeholder so a single
+// request never has to download and send many images.
 const MAX_IMAGES_PER_REQUEST = 4;
 
 /**
- * Converts stored chat messages into Gemini `contents`, downloading attached
- * images and merging consecutive messages from the same role (Gemini expects
- * user/model turns to alternate).
+ * Converts messages (`{ role, text, img }`, oldest first) into Gemini
+ * `contents`. Downloads attached images, merges consecutive messages from the
+ * same role, and drops leading model messages (Gemini expects user/model turns
+ * to alternate, starting with the user).
  */
 export const toGeminiContents = async (messages) => {
-  const imageIndexes = messages
+  const firstUser = messages.findIndex((message) => message.role === "user");
+  const context = firstUser === -1 ? [] : messages.slice(firstUser);
+
+  const imageIndexes = context
     .map((message, index) => (message.img ? index : -1))
     .filter((index) => index !== -1);
   const includedImages = new Set(imageIndexes.slice(-MAX_IMAGES_PER_REQUEST));
 
   const images = await Promise.all(
-    messages.map((message, index) =>
+    context.map((message, index) =>
       includedImages.has(index) ? fetchImageAsInlineData(message.img) : null
     )
   );
 
   const contents = [];
-  messages.forEach((message, index) => {
+  context.forEach((message, index) => {
     const parts = [];
     if (images[index]) parts.push(images[index]);
     else if (message.img) parts.push({ text: "[An image was shared earlier in the conversation.]" });
 
-    const text = message.parts?.map((part) => part.text).join("\n").trim();
+    const text = message.text?.trim();
     if (text) parts.push({ text });
     if (!parts.length) return;
 
@@ -55,6 +59,7 @@ export const streamReply = (contents, abortSignal) =>
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
       temperature: 0.8,
+      maxOutputTokens: config.ai.maxOutputTokens,
       abortSignal,
     },
   });
@@ -63,8 +68,11 @@ export const streamReply = (contents, abortSignal) =>
 export const toAiHttpError = (err) => {
   if (err instanceof HttpError) return err;
   console.error("Gemini request failed:", err);
-  if (err?.status === 429) {
-    return new HttpError(429, "The AI service is busy right now. Please try again in a minute.");
+  if (err?.status === 429 || err?.status === 503) {
+    return new HttpError(
+      err.status,
+      "The AI service is busy right now. Please try again in a minute."
+    );
   }
   if (err?.status === 400) {
     return new HttpError(400, "The AI could not process this message. Try rephrasing it.");

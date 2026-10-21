@@ -3,6 +3,7 @@ import { ClerkProvider, SignedIn, SignedOut, UserButton } from "@clerk/clerk-rea
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./rootLayout.css";
 import { CLERK_PUBLISHABLE_KEY } from "../../lib/config";
+import { DialogProvider } from "../../components/dialogs/DialogProvider";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,27 +27,32 @@ const RootLayout = () => {
       routerReplace={(to) => navigate(to, { replace: true })}
     >
       <QueryClientProvider client={queryClient}>
-        <div className="rootLayout">
-          <header>
-            <Link to="/" className="logo">
-              <img src="/logo.png" alt="" />
-              <span>CHAT AI</span>
-            </Link>
-            <div className="user">
-              <SignedIn>
-                <UserButton />
-              </SignedIn>
-              <SignedOut>
-                <Link to="/sign-in" className="signInLink">
-                  Sign in
-                </Link>
-              </SignedOut>
-            </div>
-          </header>
-          <main>
-            <Outlet />
-          </main>
-        </div>
+        <DialogProvider>
+          <div className="rootLayout">
+            <a href="#main" className="skipLink">
+              Skip to main content
+            </a>
+            <header>
+              <Link to="/" className="logo" aria-label="CHAT AI home">
+                <img src="/logo.png" alt="" />
+                <span>CHAT AI</span>
+              </Link>
+              <div className="user">
+                <SignedIn>
+                  <UserButton />
+                </SignedIn>
+                <SignedOut>
+                  <Link to="/sign-in" className="signInLink">
+                    Sign in
+                  </Link>
+                </SignedOut>
+              </div>
+            </header>
+            <main id="main" tabIndex={-1}>
+              <Outlet />
+            </main>
+          </div>
+        </DialogProvider>
       </QueryClientProvider>
     </ClerkProvider>
   );

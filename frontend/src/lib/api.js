@@ -22,9 +22,9 @@ const readErrorMessage = async (res) => {
 
 /**
  * Returns a `request(path, options)` function that calls the backend with the
- * signed-in user's Clerk session token. It throws `ApiError` for non-2xx
- * responses and returns parsed JSON, or the raw `Response` with `raw: true`
- * (used for streaming).
+ * signed-in user's Clerk session token. `body` is sent as JSON, or as-is
+ * when it's a File/Blob. It throws `ApiError` for non-2xx responses and
+ * returns parsed JSON, or the raw `Response` with `raw: true` (streaming).
  */
 export const useApi = () => {
   const { getToken } = useAuth();
@@ -34,7 +34,10 @@ export const useApi = () => {
       const token = await getToken();
       const headers = {};
       if (token) headers.Authorization = `Bearer ${token}`;
-      if (body !== undefined) headers["Content-Type"] = "application/json";
+
+      const isFile = body instanceof Blob;
+      if (isFile) headers["Content-Type"] = body.type;
+      else if (body !== undefined) headers["Content-Type"] = "application/json";
 
       let res;
       try {
@@ -42,7 +45,7 @@ export const useApi = () => {
           method,
           headers,
           signal,
-          body: body === undefined ? undefined : JSON.stringify(body),
+          body: isFile || body === undefined ? body : JSON.stringify(body),
         });
       } catch (err) {
         if (err.name === "AbortError") throw err;

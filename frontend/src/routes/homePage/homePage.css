@@ -46,7 +46,7 @@
 
     .cta {
       padding: 15px 25px;
-      background-color: #217bfe;
+      background-color: #1a6fe8;
       color: white;
       text-decoration: none;
       border-radius: 20px;
@@ -56,7 +56,7 @@
 
       &:hover {
         background-color: white;
-        color: #217bfe;
+        color: #1a6fe8;
       }
     }
   }

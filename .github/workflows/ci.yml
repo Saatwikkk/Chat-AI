@@ -1,13 +1,12 @@
-# Checks every pull request and branch push: installs, lints and builds both
-# apps, smoke-tests the API and builds the Docker image (without pushing).
-# The Deploy workflow reuses this file before publishing an image.
+# Installs, lints and builds both apps, smoke-tests the API and builds the
+# Docker image (without pushing).
+#
+# Runs only when started by hand: Actions -> CI -> "Run workflow" (pick any
+# branch). The Deploy workflow also runs it before publishing an image.
 name: CI
 
 on:
-  pull_request:
-  push:
-    branches-ignore:
-      - main # main is checked by the Deploy workflow, which calls this file
+  workflow_dispatch:
   workflow_call:
     inputs:
       skip-docker:
@@ -55,7 +54,6 @@ jobs:
           CLERK_SECRET_KEY: sk_test_ci_dummy
           GEMINI_API_KEY: ci-dummy
           IMAGE_KIT_ENDPOINT: https://ik.imagekit.io/ci
-          IMAGE_KIT_PUBLIC_KEY: public_ci
           IMAGE_KIT_PRIVATE_KEY: private_ci
           CLERK_TELEMETRY_DISABLED: "1"
         run: |
@@ -102,7 +100,6 @@ jobs:
         env:
           VITE_CLERK_PUBLISHABLE_KEY: pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
           VITE_IMAGE_KIT_ENDPOINT: https://ik.imagekit.io/ci
-          VITE_IMAGE_KIT_PUBLIC_KEY: public_ci
         run: npm run build
 
       - name: Audit production dependencies
@@ -128,7 +125,6 @@ jobs:
           build-args: |
             VITE_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsuZXhhbXBsZS5jb20k
             VITE_IMAGE_KIT_ENDPOINT=https://ik.imagekit.io/ci
-            VITE_IMAGE_KIT_PUBLIC_KEY=public_ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -140,7 +136,6 @@ jobs:
             -e CLERK_SECRET_KEY=sk_test_ci_dummy \
             -e GEMINI_API_KEY=ci-dummy \
             -e IMAGE_KIT_ENDPOINT=https://ik.imagekit.io/ci \
-            -e IMAGE_KIT_PUBLIC_KEY=public_ci \
             -e IMAGE_KIT_PRIVATE_KEY=private_ci \
             --entrypoint node chat-ai:ci --input-type=module -e '
               import { createApp } from "./app.js";

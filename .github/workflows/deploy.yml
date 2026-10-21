@@ -1,18 +1,15 @@
-# Continuous deployment.
+# Deployment, started by hand: Actions -> Deploy -> "Run workflow".
 #
-# Push to main -> CI -> build and push the image to Docker Hub
-#             -> server pulls the new image from Docker Hub and restarts.
+# Selected branch -> CI -> build and push the image to Docker Hub
+#                 -> server pulls the new image from Docker Hub and restarts.
 #
-# Rollback: Actions -> Deploy -> "Run workflow", and enter an earlier image tag
-# (e.g. sha-1a2b3c4, listed on Docker Hub) to redeploy it without rebuilding.
+# Rollback: run it with an earlier image tag (e.g. sha-1a2b3c4, listed on
+# Docker Hub) to redeploy that image without rebuilding.
 #
 # Every secret and variable used here is listed in deploy/DEPLOYMENT.md.
 name: Deploy
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       image_tag:
@@ -55,10 +52,10 @@ jobs:
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
           IMAGE_KIT_ENDPOINT: ${{ secrets.IMAGE_KIT_ENDPOINT }}
-          IMAGE_KIT_PUBLIC_KEY: ${{ secrets.IMAGE_KIT_PUBLIC_KEY }}
+          DOMAIN: ${{ vars.DOMAIN }}
         run: |
           missing=0
-          for name in DOCKERHUB_USERNAME DOCKERHUB_TOKEN CLERK_PUBLISHABLE_KEY IMAGE_KIT_ENDPOINT IMAGE_KIT_PUBLIC_KEY; do
+          for name in DOCKERHUB_USERNAME DOCKERHUB_TOKEN CLERK_PUBLISHABLE_KEY IMAGE_KIT_ENDPOINT DOMAIN; do
             if [ -z "${!name}" ]; then echo "::error::Missing secret/variable: $name"; missing=1; fi
           done
           exit $missing
@@ -95,7 +92,7 @@ jobs:
           build-args: |
             VITE_CLERK_PUBLISHABLE_KEY=${{ secrets.CLERK_PUBLISHABLE_KEY }}
             VITE_IMAGE_KIT_ENDPOINT=${{ secrets.IMAGE_KIT_ENDPOINT }}
-            VITE_IMAGE_KIT_PUBLIC_KEY=${{ secrets.IMAGE_KIT_PUBLIC_KEY }}
+            VITE_SITE_URL=https://${{ vars.DOMAIN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -126,15 +123,20 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-flash-latest' }}
           AI_DAILY_LIMIT: ${{ vars.AI_DAILY_LIMIT || '200' }}
+          AI_CONTEXT_MESSAGES: ${{ vars.AI_CONTEXT_MESSAGES || '20' }}
+          AI_MAX_OUTPUT_TOKENS: ${{ vars.AI_MAX_OUTPUT_TOKENS || '8192' }}
+          AI_TIMEOUT_SECONDS: ${{ vars.AI_TIMEOUT_SECONDS || '60' }}
+          MAX_MESSAGES_PER_CHAT: ${{ vars.MAX_MESSAGES_PER_CHAT || '1000' }}
+          UPLOADS_PER_HOUR: ${{ vars.UPLOADS_PER_HOUR || '20' }}
+          UPLOADS_PER_DAY: ${{ vars.UPLOADS_PER_DAY || '100' }}
           IMAGE_KIT_ENDPOINT: ${{ secrets.IMAGE_KIT_ENDPOINT }}
-          IMAGE_KIT_PUBLIC_KEY: ${{ secrets.IMAGE_KIT_PUBLIC_KEY }}
           IMAGE_KIT_PRIVATE_KEY: ${{ secrets.IMAGE_KIT_PRIVATE_KEY }}
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           required="DOCKERHUB_USERNAME DOMAIN CLERK_PUBLISHABLE_KEY CLERK_SECRET_KEY GEMINI_API_KEY \
-            IMAGE_KIT_ENDPOINT IMAGE_KIT_PUBLIC_KEY IMAGE_KIT_PRIVATE_KEY SSH_HOST SSH_USER SSH_PRIVATE_KEY"
+            IMAGE_KIT_ENDPOINT IMAGE_KIT_PRIVATE_KEY SSH_HOST SSH_USER SSH_PRIVATE_KEY"
           # The bundled MongoDB needs a password unless an external MONGODB_URI is used.
           [ -z "$MONGODB_URI" ] && required="$required MONGO_ROOT_PASSWORD"
           missing=0
@@ -157,8 +159,13 @@ jobs:
             echo "GEMINI_API_KEY=$GEMINI_API_KEY"
             echo "GEMINI_MODEL=$GEMINI_MODEL"
             echo "AI_DAILY_LIMIT=$AI_DAILY_LIMIT"
+            echo "AI_CONTEXT_MESSAGES=$AI_CONTEXT_MESSAGES"
+            echo "AI_MAX_OUTPUT_TOKENS=$AI_MAX_OUTPUT_TOKENS"
+            echo "AI_TIMEOUT_SECONDS=$AI_TIMEOUT_SECONDS"
+            echo "MAX_MESSAGES_PER_CHAT=$MAX_MESSAGES_PER_CHAT"
+            echo "UPLOADS_PER_HOUR=$UPLOADS_PER_HOUR"
+            echo "UPLOADS_PER_DAY=$UPLOADS_PER_DAY"
             echo "IMAGE_KIT_ENDPOINT=$IMAGE_KIT_ENDPOINT"
-            echo "IMAGE_KIT_PUBLIC_KEY=$IMAGE_KIT_PUBLIC_KEY"
             echo "IMAGE_KIT_PRIVATE_KEY=$IMAGE_KIT_PRIVATE_KEY"
           } > deploy/.env
 

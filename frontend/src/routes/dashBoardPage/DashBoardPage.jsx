@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import "./dashBoardPage.css";
 import { useApi } from "../../lib/api";
+import { useDocumentTitle } from "../../lib/hooks";
 import PromptForm from "../../components/promptForm/PromptForm";
 
 const CAPABILITIES = [
@@ -16,6 +17,7 @@ const DashboardPage = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [error, setError] = useState(null);
+  useDocumentTitle("New chat");
 
   const createChat = useMutation({
     mutationFn: (message) => request("/api/chats", { method: "POST", body: message }),
@@ -37,19 +39,20 @@ const DashboardPage = () => {
 
   return (
     <div className="dashboardPage">
+      <h1 className="srOnly">Start a new chat</h1>
       <div className="texts">
-        <div className="logo">
+        <div className="logo" aria-hidden="true">
           <img src="/logo.png" alt="" />
-          <h1>CHAT AI</h1>
+          <span className="logoText">CHAT AI</span>
         </div>
-        <div className="options">
+        <ul className="options" aria-label="What CHAT AI can do">
           {CAPABILITIES.map(({ icon, label }) => (
-            <div className="option" key={label}>
+            <li className="option" key={label}>
               <img src={icon} alt="" />
               <span>{label}</span>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       </div>
 
       <div className="composer">

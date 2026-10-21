@@ -1,4 +1,5 @@
 import { rateLimit, ipKeyGenerator } from "express-rate-limit";
+import { config } from "../config.js";
 
 const limiter = ({ windowMs, limit, message, perUser = false }) =>
   rateLimit({
@@ -13,6 +14,8 @@ const limiter = ({ windowMs, limit, message, perUser = false }) =>
   });
 
 const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 
 export const apiLimiter = limiter({
   windowMs: 15 * MINUTE,
@@ -29,14 +32,28 @@ export const aiBurstLimiter = limiter({
 });
 
 export const aiDailyLimiter = limiter({
-  windowMs: 24 * 60 * MINUTE,
-  limit: Number(process.env.AI_DAILY_LIMIT) || 200,
+  windowMs: DAY,
+  limit: config.ai.dailyLimit,
   perUser: true,
   message: "You've reached today's message limit. Please come back tomorrow.",
 });
 
+export const uploadHourlyLimiter = limiter({
+  windowMs: HOUR,
+  limit: config.uploads.hourlyLimit,
+  perUser: true,
+  message: "You've uploaded a lot of images recently. Please try again later.",
+});
+
+export const uploadDailyLimiter = limiter({
+  windowMs: DAY,
+  limit: config.uploads.dailyLimit,
+  perUser: true,
+  message: "You've reached today's image upload limit. Please come back tomorrow.",
+});
+
 export const contactLimiter = limiter({
-  windowMs: 60 * MINUTE,
+  windowMs: HOUR,
   limit: 5,
   message: "Too many messages sent. Please try again later.",
 });

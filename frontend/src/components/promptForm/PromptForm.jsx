@@ -102,14 +102,22 @@ const PromptForm = ({
   return (
     <form className="promptForm" onSubmit={handleSubmit}>
       {image.status !== "idle" && (
-        <div className="attachment">
+        <div className="attachment" aria-live="polite">
           {image.previewUrl && (
             <div className="preview">
               <img src={image.previewUrl} alt="Attachment preview" />
-              {image.status === "uploading" && <div className="uploading">Uploading…</div>}
+              {image.status === "uploading" && (
+                <div className="uploading" role="status">
+                  Uploading…
+                </div>
+              )}
             </div>
           )}
-          {image.error && <span className="attachmentError">{image.error}</span>}
+          {image.error && (
+            <span className="attachmentError" role="alert">
+              {image.error}
+            </span>
+          )}
           <button
             type="button"
             className="removeAttachment"
@@ -117,7 +125,7 @@ const PromptForm = ({
             aria-label="Remove image"
             title="Remove image"
           >
-            <i className="fa-solid fa-xmark" />
+            <i className="fa-solid fa-xmark" aria-hidden="true" />
           </button>
         </div>
       )}
@@ -162,7 +170,7 @@ const PromptForm = ({
             aria-label="Stop generating"
             title="Stop generating"
           >
-            <i className="fa-solid fa-stop" />
+            <i className="fa-solid fa-stop" aria-hidden="true" />
           </button>
         ) : (
           <button

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import "./contactPage.css";
 import { useApi } from "../../lib/api";
+import { useDocumentTitle } from "../../lib/hooks";
 import BotShowcase from "../../components/botShowcase/BotShowcase";
 
 const EMPTY_FORM = { name: "", email: "", message: "" };
@@ -11,6 +12,7 @@ const ContactPage = () => {
   const navigate = useNavigate();
   const request = useApi();
   const [form, setForm] = useState(EMPTY_FORM);
+  useDocumentTitle("Contact");
 
   const sendMessage = useMutation({
     mutationFn: (body) => request("/api/contact", { method: "POST", body }),
@@ -34,7 +36,7 @@ const ContactPage = () => {
   return (
     <div className="contactContainer">
       <button className="backButton" onClick={handleBack} aria-label="Go back">
-        <i className="fa-solid fa-arrow-left" />
+        <i className="fa-solid fa-arrow-left" aria-hidden="true" />
       </button>
 
       <div className="left">

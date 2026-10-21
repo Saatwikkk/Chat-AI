@@ -26,7 +26,8 @@ const BotShowcase = () => {
   });
 
   return (
-    <div className="botShowcase">
+    // Decorative animation: hidden from screen readers.
+    <div className="botShowcase" aria-hidden="true">
       <div className="bgContainer">
         <div className="bg" />
       </div>

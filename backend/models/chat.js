@@ -1,30 +1,7 @@
 import mongoose from "mongoose";
 
-const partSchema = new mongoose.Schema(
-  {
-    text: {
-      type: String,
-      default: "",
-    },
-  },
-  { _id: false }
-);
-
-const messageSchema = new mongoose.Schema(
-  {
-    role: {
-      type: String,
-      enum: ["user", "model"],
-      required: true,
-    },
-    parts: [partSchema],
-    img: {
-      type: String,
-    },
-  },
-  { _id: false }
-);
-
+// A conversation's metadata. Its messages live in the `messages` collection,
+// so a long conversation never runs into MongoDB's 16 MB document limit.
 const chatSchema = new mongoose.Schema(
   {
     userId: {
@@ -33,14 +10,18 @@ const chatSchema = new mongoose.Schema(
     },
     title: {
       type: String,
+      required: true,
       maxlength: 100,
     },
-    history: [messageSchema],
+    messageCount: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );
 
 // Serves the sidebar query: a user's chats, most recently active first.
-chatSchema.index({ userId: 1, updatedAt: -1 });
+chatSchema.index({ userId: 1, updatedAt: -1, _id: -1 });
 
 export default mongoose.models.chat || mongoose.model("chat", chatSchema);
